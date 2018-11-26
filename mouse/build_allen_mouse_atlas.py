@@ -6,9 +6,11 @@ import io
 import json
 import re
 
-AllenDownloadBaseURL = 'http://download.alleninstitute.org/informatics-archive/'
-MouseCCFAverageTemplateBaseURL = AllenDownloadBaseURL + 'current-release/mouse_ccf/average_template/'
-MouseCCFDownloadBaseURL = AllenDownloadBaseURL + 'current-release/mouse_ccf/annotation/ccf_2017/'
+AllenDownloadBaseURL = 'http://download.alleninstitute.org/informatics-archive/current-release/mouse_ccf/'
+MouseCCFAverageTemplateBaseURL = AllenDownloadBaseURL + 'average_template/'
+MouseCCFAraNisslURL = AllenDownloadBaseURL + 'ara_nissl/'
+
+MouseCCFDownloadBaseURL = AllenDownloadBaseURL + 'annotation/ccf_2017/'
 MouseCCFMeshBaseURL = MouseCCFDownloadBaseURL + 'structure_meshes/'
 MouseCCFMaskBaseURL = MouseCCFDownloadBaseURL + 'structure_masks/'
 
@@ -97,10 +99,12 @@ def BaseURL(id_, url):
         "url": url
     }
 
-def TriangleMeshDataSource(id_, baseURL, mimeType, source, annotation=None):
+def DataSource(id_, baseURL, mimeType, source, annotation=None, extra_types=None):
+
+    type_ = 'DataSource' if not extra_types else ['DataSource', *extra_types]
     ret = {
         "@id": id_,
-        "@type": ["DataSource", "GeometryDataSource", "TriangleMeshDataSource"],
+        "@type": type_,
         "baseURL": baseURL['@id'],
         "mimeType": mimeType,
         "source": source,
@@ -109,29 +113,6 @@ def TriangleMeshDataSource(id_, baseURL, mimeType, source, annotation=None):
         ret['annotation'] = annotation
     return ret
 
-def ImageDataSource(id_, baseURL, mimeType, source, annotation=None):
-    ret = {
-        "@id": id_,
-        "@type": ["DataSource", "ImageDataSource"],
-        "baseURL": baseURL['@id'],
-        "mimeType": mimeType,
-        "source": source,
-    }
-    if annotation:
-        ret['annotation'] = annotation
-    return ret
-
-def VoxelMaskDataSource(id_, baseURL, mimeType, source, annotation=None):
-    ret = {
-        "@id": id_,
-        "@type": ["DataSource", "ImageDataSource", 'VoxelMaskDataSource'],
-        "baseURL": baseURL['@id'],
-        "mimeType": mimeType,
-        "source": source,
-    }
-    if annotation:
-        ret['annotation'] = annotation
-    return ret
 
 def Structure(id_, structure_id, color, mesh_ds, label_ds, is_group=False, annotation=None):
     shape =  {
@@ -202,15 +183,17 @@ def build_atlas(ontology, mesh_ids):
     mesh_base = BaseURL("#mesh_base_url", MouseCCFMeshBaseURL)
     mask_base = BaseURL("#mask_base_url", MouseCCFMaskBaseURL)
     download_base = BaseURL("#mesh_download_url", MouseCCFDownloadBaseURL)
-    template_base = BaseURL('#average_template_base_url', MouseCCFAverageTemplateBaseURL)
-    
-    result_nodes.extend([mesh_base, mask_base, download_base, template_base])
+    average_template_base = BaseURL('#average_template_base_url', MouseCCFAverageTemplateBaseURL)
+    ara_nissl_base = BaseURL('#ara_nissl_base_url', MouseCCFAraNisslURL)
+
+    result_nodes.extend([mesh_base, mask_base, download_base, average_template_base, ara_nissl_base])
 
     # meshes
     mesh_data_sources = {}
     for mid in mesh_ids:
-        mesh_data_sources[mid] = TriangleMeshDataSource("#mesh_ds_{}".format(mid), 
-                                    mesh_base, 'text/plain', "{}.obj".format(mid))
+        mesh_data_sources[mid] = DataSource("#mesh_ds_{}".format(mid), 
+                                    mesh_base, 'text/plain', "{}.obj".format(mid), 
+                                    extra_types=["GeometryDataSource", "TriangleMeshDataSource"])
     result_nodes.extend(mesh_data_sources.values())
 
     # voxel masks
@@ -218,12 +201,14 @@ def build_atlas(ontology, mesh_ids):
     for mid in mesh_ids:
         label_data_sources[mid] = {}
         for r in resolutions:
-            label_data_sources[mid][r] = VoxelMaskDataSource('#mask_ds_{}_{}'.format(r, mid),
+            label_data_sources[mid][r] = DataSource('#mask_ds_{}_{}'.format(r, mid),
                                         download_base, 'application/octet-stream',
                                         'structure_masks_{}/structure_{}.nrrd'.format(r, mid), 
                                         { 
                                             'spatialResolutionMicrons': r
-                                        })
+                                        },
+                                        extra_types=['ImageDataSource', 'VoxelMaskDataSource'])
+
     result_nodes.extend([n for x in label_data_sources.values() for n in x.values()])
 
     # structures
@@ -268,13 +253,29 @@ def build_atlas(ontology, mesh_ids):
     # average templates
     average_templates = {}
     for r in resolutions:
-        average_templates[r] = ImageDataSource('#average_template_ds_{}'.format(r), 
-                            template_base,
+        average_templates[r] = DataSource('#average_template_ds_{}'.format(r), 
+                            average_template_base,
                             'application/octet-stream', 
                             'average_template_{}.nrrd'.format(r), 
-                            { 'spatialResolutionMicrons': r })
+                            { 'spatialResolutionMicrons': r },
+                            extra_types=['ImageDataSource', 'AverageTemplateDataSource'])
     
     result_nodes.extend(average_templates.values())
+
+    # average templates
+    ara_nissl = {}
+    for r in resolutions:
+        ara_nissl[r] = DataSource('#ara_nissl_ds_{}'.format(r), 
+                            ara_nissl_base,
+                            'application/octet-stream', 
+                            'ara_nissl_{}.nrrd'.format(r), 
+                            { 
+                                'spatialResolutionMicrons': r
+                            },
+                            extra_types=['ImageDataSource', 'AraNisslDataSource'])
+
+    
+    result_nodes.extend(ara_nissl.values())
 
     header = Header('#__header__', [structures[997]], 
                 average_templates.values(), 
