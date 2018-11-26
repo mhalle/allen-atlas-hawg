@@ -280,7 +280,7 @@ def build_atlas(ontology, mesh_ids):
                 average_templates.values(), 
                 {
                     'name': "Allen Mouse CCF Atlas",
-                    "about': [
+                    'about': [
                         'http://help.brain-map.org/display/mousebrain/',
                         'http://help.brain-map.org/display/mousebrain/API',
                         "http://portal.brain-map.org/"
