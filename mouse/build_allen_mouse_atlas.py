@@ -6,6 +6,7 @@ import io
 import json
 import re
 
+FormatVersion = '0.9'
 AllenDownloadBaseURL = 'http://download.alleninstitute.org/informatics-archive/current-release/mouse_ccf/'
 MouseCCFAverageTemplateBaseURL = AllenDownloadBaseURL + 'average_template/'
 MouseCCFAraNisslURL = AllenDownloadBaseURL + 'ara_nissl/'
@@ -81,7 +82,8 @@ def Header(id_, roots, backgroundImages=None, annotation=None):
     ret = {
         '@id': id_,
         "@type": 'Header',
-        'root': [r['@id'] for r in roots]
+        'root': [r['@id'] for r in roots],
+        'formatVersion': FormatVersion,
     }
 
     if backgroundImages:
