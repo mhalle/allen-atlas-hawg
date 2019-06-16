@@ -230,8 +230,8 @@ def build_atlas(ontology, mesh_ids):
                         )
     result_nodes.extend(structures.values())
 
-    # add groups that aren't structures if we need them (currently, we don't)
-    if False:
+    # add groups that aren't structures if we need them
+    if True:
         groups = {}
         for k, s in structures.items():
             parent_id = ontology[k]['parent_structure_id']
